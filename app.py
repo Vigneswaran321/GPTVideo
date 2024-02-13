@@ -5,6 +5,7 @@ import openai
 import os
 import time
 import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
@@ -67,15 +68,24 @@ def manage_video_files():
 
 @app.route('/')
 def index():
+    # global latest_headline
+    # new_headline = get_latest_headline()
+    # if new_headline:
+    #     audio_response = generate_news_audio(new_headline)
+    #     audio_response.write_to_file('static\output.mp3')
+    #     # video_file = request_video_processing(audio_response, new_headline)
+    #     # manage_video_files()
+    return render_template('index.html')
+
+def scheduled_task():
     global latest_headline
     new_headline = get_latest_headline()
     if new_headline:
         audio_response = generate_news_audio(new_headline)
-        audio_response.write_to_file('static\output.mp3')
+        audio_response.write_to_file('static/output.mp3')
         # video_file = request_video_processing(audio_response, new_headline)
         # manage_video_files()
-    return render_template('index.html')
-
+    print("Task executed.")
 
 @app.route('/video')
 def video_stream():
@@ -94,4 +104,10 @@ def video_stream():
     return Response(stream_with_context(generate()), mimetype='video/mp4')
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=True)
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=scheduled_task, trigger="interval", minutes=10)
+    scheduler.start()
+    try:
+        app.run(use_reloader=False)
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
